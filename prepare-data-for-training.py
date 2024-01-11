@@ -2,6 +2,9 @@
 # This script prepares the training images and ratings for the training.
 # It assumes that all images are stored as files that PIL can read.
 # It also assumes that the paths to the images files and the average ratings are in a .parquet files that can be read into a dataframe ( df ).
+# このスクリプトは、トレーニング用のトレーニング画像と評価を準備します。
+# すべての画像が PIL が読み取れるファイルとして保存されていることを前提としています。
+# また、画像ファイルへのパスと平均評価が、データフレーム ( df ) に読み込める .parquet ファイル内にあることも前提としています。
 
 from datasets import load_dataset
 import pandas as pd
@@ -64,8 +67,6 @@ for idx, row in df.iterrows():
 
     print(c)
     c+=1
-
-
 
 
 x = np.vstack(x)
