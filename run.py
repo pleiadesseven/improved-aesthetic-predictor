@@ -169,7 +169,7 @@ if not auto_dir_flag:
     output_str += output_str_tr
     output_str += "</table></body></html>"
 
-    output_file = open(f'prev.html', 'w')
+    output_file = open(f'prev.html', 'w', encoding='utf-8')
     output_file.write(output_str)
 
 

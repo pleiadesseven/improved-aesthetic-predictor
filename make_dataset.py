@@ -6,14 +6,10 @@
 # すべての画像が PIL が読み取れるファイルとして保存されていることを前提としています。
 # また、画像ファイルへのパスと平均評価が、データフレーム ( df ) に読み込める .parquet ファイル内にあることも前提としています。
 
-from datasets import load_dataset
-import pandas as pd
-import statistics
-from torch.utils.data import Dataset, DataLoader
 import open_clip
 import torch
 import torch.nn as nn
-from PIL import Image, ImageFile
+from PIL import Image
 import numpy as np
 import time
 import os
@@ -31,9 +27,8 @@ with open(config_path, "r", encoding="utf-8") as file:
 
 
 def load_open_clip_model(model_name="ViT-H-14"):
-   """
-   モデルをロードする関数
-
+   """モデルをロードする関数
+   YAMLにカスタムモデルが設定されている場合カスタムモデルをロードする。
    Args:
       model_name (str): モデルの名前 (デフォルト: "ViT-H-14")
 
@@ -42,17 +37,14 @@ def load_open_clip_model(model_name="ViT-H-14"):
       preprocess: データの前処理を行うための関数
    """
    device = torch.device(config["device"])
-   custom_model = config["custom_model"]
-   # カスタムモデルが設定されている場合
-   if custom_model:
-      #独自の学習済みモデルを読み込む
-      custom_model = torch.load(custom_model, map_location=device)
-      # メタデータからベースモデル名を取得（仮定）
-      if 'base_model_name' in custom_model:
-         model_name = custom_model['base_model_name']
+   custom_model_path = config["custom_model"]
+
+   if custom_model_path:
+      custom_model = torch.load(custom_model_path, map_location=device)
+      #TODO: カスタムモデルのベースモデル名を取得する方法を考える
       # 指定されたモデル名でOpen CLIPモデルをロード
 
-   model, _, preprocess = open_clip.create_model_and_transforms(model_name, device=device)
+   model, preprocess_train, preprocess = open_clip.create_model_and_transforms(model_name, device=device)
    return model, preprocess, custom_model
 
 
@@ -85,9 +77,11 @@ if __name__ == "__main__":
          super(CustomModel, self).__init__()
          # 基本モデルの特定の層をカスタムモデルにコピー
          self.conv1 = base_model.visual.conv1
-         self.bn1 = base_model.visual.bn1
+         if hasattr(base_model.visual, "bn1"):
+            self.bn1 = base_model.visual.bn1
          self.relu = nn.ReLU(inplace=True)
-         self.maxpool = base_model.visual.maxpool
+         if hasattr(base_model.visual, "maxpool"):
+            self.maxpool = base_model.visual.maxpool
 
       def forward(self, x):
          x = self.conv1(x)
@@ -104,7 +98,8 @@ if __name__ == "__main__":
    # 独自の学習済みモデルの畳み込み層をCLIPモデルの対応する層にコピー
    if custom_model:
       custom_model_instance = CustomModel(model)
-      custom_model_instance.load_state_dict(custom_model)
+      state_dict = {f'conv{i // 2}.weight' if i % 2 == 0 else f'conv{i // 2}.bias': v for i, (k, v) in enumerate(custom_model.items())}
+      custom_model_instance.load_state_dict(state_dict)
       model.visual.conv1.weight = custom_model_instance.conv1.weight
       model.visual.conv1.bias = custom_model_instance.conv1.bias
 
